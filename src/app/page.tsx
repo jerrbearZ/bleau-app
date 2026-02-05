@@ -4,6 +4,12 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white">
+      <Link
+        href="/transform"
+        className="mb-8 text-sm font-medium text-black/50 transition-colors hover:text-black"
+      >
+        what i can do
+      </Link>
       <Image
         src="/logo.png"
         alt="Bleau"
