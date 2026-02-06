@@ -22,15 +22,14 @@ export async function POST(request: Request): Promise<NextResponse<UploadRespons
       );
     }
 
-    // Generate unique filename to prevent collisions
-    const timestamp = Date.now();
+    // Sanitize filename
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const uniqueName = `${timestamp}-${safeName}`;
 
-    // Upload to Vercel Blob
-    const blob = await put(uniqueName, file, {
+    // Upload to Vercel Blob (allows overwriting same filename)
+    const blob = await put(safeName, file, {
       access: "public",
       token: process.env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: false,
     });
 
     return NextResponse.json({ url: blob.url });
