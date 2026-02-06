@@ -1,135 +1,186 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useReducer, useCallback } from "react";
 import Image from "next/image";
-import { Upload, Loader2, Sparkles, X } from "lucide-react";
+import { Upload, Loader2, Sparkles, X, Download } from "lucide-react";
+import { STYLE_OPTIONS, API_ENDPOINTS, UPLOAD_CONFIG } from "@/lib/constants";
+import type { UploaderState, UploaderAction, UploadResponse, TransformResponse } from "@/types";
 
-const STYLE_OPTIONS = [
-  { value: "3D Pixar character", label: "3D Pixar" },
-  { value: "Studio Ghibli anime style", label: "Studio Ghibli" },
-  { value: "oil painting masterpiece", label: "Oil Painting" },
-  { value: "cyberpunk neon aesthetic", label: "Cyberpunk" },
-  { value: "watercolor illustration", label: "Watercolor" },
-  { value: "pop art comic style", label: "Pop Art" },
-];
+// Initial state
+const initialState: UploaderState = {
+  isDragging: false,
+  isUploading: false,
+  isTransforming: false,
+  originalUrl: null,
+  transformedUrl: null,
+  description: null,
+  selectedStyle: STYLE_OPTIONS[0].value,
+  error: null,
+};
+
+// Reducer for cleaner state management
+function uploaderReducer(state: UploaderState, action: UploaderAction): UploaderState {
+  switch (action.type) {
+    case "SET_DRAGGING":
+      return { ...state, isDragging: action.payload };
+    case "START_UPLOAD":
+      return { ...state, isUploading: true, error: null, transformedUrl: null, description: null };
+    case "UPLOAD_SUCCESS":
+      return { ...state, isUploading: false, originalUrl: action.payload };
+    case "UPLOAD_ERROR":
+      return { ...state, isUploading: false, error: action.payload };
+    case "START_TRANSFORM":
+      return { ...state, isTransforming: true, error: null };
+    case "TRANSFORM_SUCCESS":
+      return {
+        ...state,
+        isTransforming: false,
+        transformedUrl: action.payload.url || null,
+        description: action.payload.description || null,
+      };
+    case "TRANSFORM_ERROR":
+      return { ...state, isTransforming: false, error: action.payload };
+    case "SET_STYLE":
+      return { ...state, selectedStyle: action.payload };
+    case "RESET":
+      return initialState;
+    case "CLEAR_ERROR":
+      return { ...state, error: null };
+    default:
+      return state;
+  }
+}
 
 export default function ImageUploader() {
-  const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isTransforming, setIsTransforming] = useState(false);
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [transformedDescription, setTransformedDescription] = useState<string | null>(null);
-  const [selectedStyle, setSelectedStyle] = useState(STYLE_OPTIONS[0].value);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(uploaderReducer, initialState);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    dispatch({ type: "SET_DRAGGING", payload: true });
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    dispatch({ type: "SET_DRAGGING", payload: false });
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  }, []);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  };
-
-  const handleFileUpload = async (file: File) => {
-    setError(null);
-    setIsUploading(true);
-    setTransformedDescription(null);
+  const handleFileUpload = useCallback(async (file: File) => {
+    dispatch({ type: "START_UPLOAD" });
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/upload", {
+      const response = await fetch(API_ENDPOINTS.upload, {
         method: "POST",
         body: formData,
       });
 
-      const result = await response.json();
+      const result: UploadResponse = await response.json();
 
       if (!response.ok || result.error) {
-        setError(result.error || "Upload failed");
+        dispatch({ type: "UPLOAD_ERROR", payload: result.error || "Upload failed" });
         return;
       }
 
       if (result.url) {
-        setOriginalUrl(result.url);
+        dispatch({ type: "UPLOAD_SUCCESS", payload: result.url });
       }
     } catch (err) {
-      console.error("Upload catch error:", err);
-      const message = err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Upload failed: ${message}`);
-    } finally {
-      setIsUploading(false);
+      const message = err instanceof Error ? err.message : "Upload failed";
+      dispatch({ type: "UPLOAD_ERROR", payload: message });
     }
-  };
+  }, []);
 
-  const handleTransform = async () => {
-    if (!originalUrl) return;
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dispatch({ type: "SET_DRAGGING", payload: false });
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    },
+    [handleFileUpload]
+  );
 
-    setError(null);
-    setIsTransforming(true);
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    },
+    [handleFileUpload]
+  );
+
+  const handleTransform = useCallback(async () => {
+    if (!state.originalUrl) return;
+
+    dispatch({ type: "START_TRANSFORM" });
 
     try {
-      const response = await fetch("/api/transform", {
+      const response = await fetch(API_ENDPOINTS.transform, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: originalUrl, style: selectedStyle }),
+        body: JSON.stringify({
+          imageUrl: state.originalUrl,
+          style: state.selectedStyle,
+        }),
       });
 
-      const result = await response.json();
+      const result: TransformResponse = await response.json();
 
       if (!response.ok || result.error) {
-        setError(result.error || "Transform failed");
+        dispatch({ type: "TRANSFORM_ERROR", payload: result.error || "Transform failed" });
         return;
       }
 
-      if (result.description) {
-        setTransformedDescription(result.description);
-      }
+      dispatch({
+        type: "TRANSFORM_SUCCESS",
+        payload: {
+          url: result.transformedUrl,
+          description: result.description,
+        },
+      });
     } catch (err) {
-      console.error("Transform catch error:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(`Transform failed: ${message}`);
-    } finally {
-      setIsTransforming(false);
+      const message = err instanceof Error ? err.message : "Transform failed";
+      dispatch({ type: "TRANSFORM_ERROR", payload: message });
     }
-  };
+  }, [state.originalUrl, state.selectedStyle]);
 
-  const handleReset = () => {
-    setOriginalUrl(null);
-    setTransformedDescription(null);
-    setError(null);
-  };
+  const handleReset = useCallback(() => {
+    dispatch({ type: "RESET" });
+  }, []);
+
+  const handleDownload = useCallback(() => {
+    if (!state.transformedUrl) return;
+
+    const link = document.createElement("a");
+    link.href = state.transformedUrl;
+    link.download = `transformed-${state.selectedStyle.replace(/\s+/g, "-")}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [state.transformedUrl, state.selectedStyle]);
 
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Error Message */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-          {error}
+      {state.error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center justify-between">
+          <span>{state.error}</span>
+          <button
+            onClick={() => dispatch({ type: "CLEAR_ERROR" })}
+            className="text-red-500 hover:text-red-700"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* Upload Area - Show when no image uploaded */}
-      {!originalUrl && (
+      {/* Upload Area */}
+      {!state.originalUrl && (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -137,23 +188,23 @@ export default function ImageUploader() {
           className={`
             relative border-2 border-dashed rounded-2xl p-12
             transition-all duration-200 ease-in-out
-            ${isDragging
+            ${state.isDragging
               ? "border-blue-500 bg-blue-50"
               : "border-gray-300 hover:border-gray-400 bg-gray-50"
             }
-            ${isUploading ? "pointer-events-none opacity-60" : "cursor-pointer"}
+            ${state.isUploading ? "pointer-events-none opacity-60" : "cursor-pointer"}
           `}
         >
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept={UPLOAD_CONFIG.allowedTypes.join(",")}
             onChange={handleFileSelect}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            disabled={isUploading}
+            disabled={state.isUploading}
           />
 
           <div className="flex flex-col items-center justify-center text-center">
-            {isUploading ? (
+            {state.isUploading ? (
               <>
                 <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
                 <p className="text-lg font-medium text-black">Uploading...</p>
@@ -165,7 +216,7 @@ export default function ImageUploader() {
                   Drop your image here
                 </p>
                 <p className="text-sm text-gray-500">
-                  or click to browse (JPEG, PNG, WebP, GIF up to 10MB)
+                  or click to browse ({UPLOAD_CONFIG.allowedExtensions.join(", ")} up to {UPLOAD_CONFIG.maxSizeMB}MB)
                 </p>
               </>
             )}
@@ -174,7 +225,7 @@ export default function ImageUploader() {
       )}
 
       {/* Image Display & Transform Controls */}
-      {originalUrl && (
+      {state.originalUrl && (
         <div className="space-y-6">
           {/* Style Selector */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -182,9 +233,9 @@ export default function ImageUploader() {
               Transform style:
             </label>
             <select
-              value={selectedStyle}
-              onChange={(e) => setSelectedStyle(e.target.value)}
-              disabled={isTransforming}
+              value={state.selectedStyle}
+              onChange={(e) => dispatch({ type: "SET_STYLE", payload: e.target.value })}
+              disabled={state.isTransforming}
               className="flex-1 max-w-xs px-4 py-2 border border-gray-300 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {STYLE_OPTIONS.map((option) => (
@@ -195,10 +246,10 @@ export default function ImageUploader() {
             </select>
             <button
               onClick={handleTransform}
-              disabled={isTransforming}
+              disabled={state.isTransforming}
               className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isTransforming ? (
+              {state.isTransforming ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Transforming...
@@ -212,7 +263,7 @@ export default function ImageUploader() {
             </button>
             <button
               onClick={handleReset}
-              disabled={isTransforming}
+              disabled={state.isTransforming}
               className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black transition-colors disabled:opacity-50"
             >
               <X className="w-4 h-4" />
@@ -229,7 +280,7 @@ export default function ImageUploader() {
               </p>
               <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
                 <Image
-                  src={originalUrl}
+                  src={state.originalUrl}
                   alt="Original uploaded image"
                   fill
                   className="object-cover"
@@ -239,27 +290,46 @@ export default function ImageUploader() {
 
             {/* Transformed Result */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                Transformed
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                  Transformed
+                </p>
+                {state.transformedUrl && (
+                  <button
+                    onClick={handleDownload}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                )}
+              </div>
               <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                {isTransforming ? (
+                {state.isTransforming ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                    <p className="text-sm text-gray-500">AI is thinking...</p>
+                    <p className="text-sm text-gray-500">AI is creating your image...</p>
                   </div>
-                ) : transformedDescription ? (
+                ) : state.transformedUrl ? (
+                  <Image
+                    src={state.transformedUrl}
+                    alt="Transformed image"
+                    fill
+                    className="object-cover"
+                    unoptimized // Required for data URLs
+                  />
+                ) : state.description ? (
                   <div className="absolute inset-0 p-4 overflow-y-auto">
                     <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
                       AI Description:
                     </p>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {transformedDescription}
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {state.description}
                     </p>
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-gray-400 text-center px-4">
                       Select a style and click Transform
                     </p>
                   </div>
@@ -267,16 +337,6 @@ export default function ImageUploader() {
               </div>
             </div>
           </div>
-
-          {/* Note about image generation */}
-          {transformedDescription && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-sm text-amber-800">
-                <strong>Note:</strong> Currently showing AI description. For actual image
-                generation, integrate with Google Imagen, DALL-E, or Stable Diffusion API.
-              </p>
-            </div>
-          )}
         </div>
       )}
     </div>

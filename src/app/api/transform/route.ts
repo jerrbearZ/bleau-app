@@ -1,24 +1,31 @@
 import { NextResponse } from "next/server";
+import { validateBlobUrl, validateStyle } from "@/lib/validations";
+import { STYLE_OPTIONS, GEMINI_CONFIG } from "@/lib/constants";
+import type { TransformResponse } from "@/types";
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse<TransformResponse>> {
   try {
     const { imageUrl, style } = await request.json();
 
-    if (!imageUrl) {
-      return NextResponse.json({ error: "No image URL provided" }, { status: 400 });
+    // Validate inputs
+    const urlValidation = validateBlobUrl(imageUrl);
+    if (!urlValidation.valid) {
+      return NextResponse.json({ error: urlValidation.error }, { status: 400 });
+    }
+
+    const styleValidation = validateStyle(style, STYLE_OPTIONS);
+    if (!styleValidation.valid) {
+      return NextResponse.json({ error: styleValidation.error }, { status: 400 });
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is not set");
       return NextResponse.json(
         { error: "Gemini API not configured" },
         { status: 500 }
       );
     }
 
-    console.log("Transforming image:", imageUrl, "Style:", style);
-
-    // Fetch the image and convert to base64
+    // Step 1: Fetch and encode the original image
     const imageResponse = await fetch(imageUrl);
     if (!imageResponse.ok) {
       return NextResponse.json(
@@ -31,27 +38,12 @@ export async function POST(request: Request) {
     const base64Image = Buffer.from(imageBuffer).toString("base64");
     const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-    console.log("Image fetched, size:", imageBuffer.byteLength, "type:", mimeType);
-
-    const prompt = `You are an art transformation expert. Analyze this image and describe in vivid detail how it would look if transformed into a ${style}.
-
-Describe:
-1. The overall visual style and aesthetic
-2. Color palette changes
-3. Texture and artistic techniques that would be applied
-4. Specific elements and how they would be stylized
-5. The mood and atmosphere of the transformed image
-
-Be creative and descriptive, painting a picture with your words.`;
-
-    // Use REST API directly instead of SDK
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    // Step 2: Use Gemini to analyze the image and get a description
+    const analyzeResponse = await fetch(
+      `${GEMINI_CONFIG.apiBaseUrl}/models/${GEMINI_CONFIG.fallbackModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [
             {
@@ -63,7 +55,13 @@ Be creative and descriptive, painting a picture with your words.`;
                   },
                 },
                 {
-                  text: prompt,
+                  text: `Describe this image in detail for an artist to recreate it. Include:
+- Main subject(s) and their poses/positions
+- Background elements
+- Colors and lighting
+- Composition and framing
+- Any text or notable details
+Keep the description concise but complete (2-3 sentences).`,
                 },
               ],
             },
@@ -72,26 +70,82 @@ Be creative and descriptive, painting a picture with your words.`;
       }
     );
 
-    if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.text();
-      console.error("Gemini API error:", errorData);
+    if (!analyzeResponse.ok) {
+      const errorText = await analyzeResponse.text();
       return NextResponse.json(
-        { error: `Gemini API error: ${geminiResponse.status}` },
+        { error: `Image analysis failed: ${analyzeResponse.status}` },
         { status: 500 }
       );
     }
 
-    const data = await geminiResponse.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "No description generated";
+    const analyzeData = await analyzeResponse.json();
+    const imageDescription =
+      analyzeData.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "A detailed image";
 
-    console.log("Transform success, description length:", text.length);
+    // Step 3: Generate new image using image generation model
+    const generatePrompt = `Create an image in ${style} style: ${imageDescription}. Make it highly detailed and artistic.`;
+
+    const generateResponse = await fetch(
+      `${GEMINI_CONFIG.apiBaseUrl}/models/${GEMINI_CONFIG.model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: generatePrompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ["image", "text"],
+            responseMimeType: "image/png",
+          },
+        }),
+      }
+    );
+
+    if (!generateResponse.ok) {
+      const errorText = await generateResponse.text();
+      // Fallback: Return just the description if image generation fails
+      return NextResponse.json({
+        description: `**Style: ${style}**\n\n${imageDescription}\n\n*Image generation is currently unavailable. Here's how your image would look:*\n\nImagine this scene transformed with ${style} aesthetics, featuring stylized elements, characteristic color palettes, and artistic techniques typical of this style.`,
+        transformedUrl: undefined,
+      });
+    }
+
+    const generateData = await generateResponse.json();
+
+    // Check if we got an image back
+    const generatedPart = generateData.candidates?.[0]?.content?.parts?.[0];
+
+    if (generatedPart?.inlineData?.data) {
+      // We got a generated image - convert to data URL
+      const generatedMimeType = generatedPart.inlineData.mimeType || "image/png";
+      const generatedBase64 = generatedPart.inlineData.data;
+      const dataUrl = `data:${generatedMimeType};base64,${generatedBase64}`;
+
+      return NextResponse.json({
+        transformedUrl: dataUrl,
+        description: imageDescription,
+      });
+    } else if (generatedPart?.text) {
+      // Got text instead of image
+      return NextResponse.json({
+        description: generatedPart.text,
+        transformedUrl: undefined,
+      });
+    }
 
     return NextResponse.json({
-      description: text,
-      transformedUrl: null,
+      description: imageDescription,
+      transformedUrl: undefined,
     });
   } catch (error) {
-    console.error("Transform error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
