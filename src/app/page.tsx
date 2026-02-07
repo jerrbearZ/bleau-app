@@ -3,7 +3,10 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-white">
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-white">
+      <span className="absolute top-4 right-4 text-xs text-black/25">
+        v0.7 — 2026-02-07
+      </span>
       <Link
         href="/transform"
         className="mb-8 text-sm font-medium text-black/50 transition-colors hover:text-black"
