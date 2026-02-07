@@ -50,7 +50,7 @@ export function validateBlobUrl(url: string): ValidationResult {
     }
 
     // Must be from Vercel Blob storage
-    if (!parsedUrl.hostname.includes(BLOB_URL_PATTERN.replace(".", ""))) {
+    if (!parsedUrl.hostname.endsWith(BLOB_URL_PATTERN)) {
       return { valid: false, error: "Invalid image source" };
     }
 

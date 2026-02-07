@@ -72,8 +72,13 @@ Keep the description concise but complete (2-3 sentences).`,
 
     if (!analyzeResponse.ok) {
       const errorText = await analyzeResponse.text();
+      console.error("Gemini analyze error", {
+        status: analyzeResponse.status,
+        statusText: analyzeResponse.statusText,
+        errorText,
+      });
       return NextResponse.json(
-        { error: `Image analysis failed: ${analyzeResponse.status}` },
+        { error: `Image analysis failed: ${analyzeResponse.status} ${analyzeResponse.statusText} - ${errorText}` },
         { status: 500 }
       );
     }
@@ -102,7 +107,7 @@ Keep the description concise but complete (2-3 sentences).`,
             },
           ],
           generationConfig: {
-            responseModalities: ["image", "text"],
+            responseModalities: ["TEXT", "IMAGE"],
           },
         }),
       }
@@ -110,6 +115,11 @@ Keep the description concise but complete (2-3 sentences).`,
 
     if (!generateResponse.ok) {
       const errorText = await generateResponse.text();
+      console.error("Gemini generate error", {
+        status: generateResponse.status,
+        statusText: generateResponse.statusText,
+        errorText,
+      });
       // Fallback: Return just the description if image generation fails
       return NextResponse.json({
         description: `**Style: ${style}**\n\n${imageDescription}\n\n*Image generation is currently unavailable. Here's how your image would look:*\n\nImagine this scene transformed with ${style} aesthetics, featuring stylized elements, characteristic color palettes, and artistic techniques typical of this style.`,

@@ -7,7 +7,7 @@ export const UPLOAD_CONFIG = {
 } as const;
 
 // Vercel Blob URL pattern for validation
-export const BLOB_URL_PATTERN = ".blob.vercel-storage.com";
+export const BLOB_URL_PATTERN = "blob.vercel-storage.com";
 
 // Style options for image transformation
 export const STYLE_OPTIONS = [
@@ -27,7 +27,7 @@ export const API_ENDPOINTS = {
 
 // Gemini API configuration
 export const GEMINI_CONFIG = {
-  model: "gemini-2.0-flash-exp-image-generation",
+  model: "gemini-2.5-flash-image",
   fallbackModel: "gemini-2.0-flash",
   apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
 } as const;
