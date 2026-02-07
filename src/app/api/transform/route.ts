@@ -103,7 +103,6 @@ Keep the description concise but complete (2-3 sentences).`,
           ],
           generationConfig: {
             responseModalities: ["image", "text"],
-            responseMimeType: "image/png",
           },
         }),
       }
@@ -120,23 +119,35 @@ Keep the description concise but complete (2-3 sentences).`,
 
     const generateData = await generateResponse.json();
 
-    // Check if we got an image back
-    const generatedPart = generateData.candidates?.[0]?.content?.parts?.[0];
+    // Find image and text parts in the response
+    const parts = generateData.candidates?.[0]?.content?.parts || [];
 
-    if (generatedPart?.inlineData?.data) {
+    let generatedImageData: string | null = null;
+    let generatedMimeType = "image/png";
+    let generatedText: string | null = null;
+
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        generatedImageData = part.inlineData.data;
+        generatedMimeType = part.inlineData.mimeType || "image/png";
+      }
+      if (part.text) {
+        generatedText = part.text;
+      }
+    }
+
+    if (generatedImageData) {
       // We got a generated image - convert to data URL
-      const generatedMimeType = generatedPart.inlineData.mimeType || "image/png";
-      const generatedBase64 = generatedPart.inlineData.data;
-      const dataUrl = `data:${generatedMimeType};base64,${generatedBase64}`;
+      const dataUrl = `data:${generatedMimeType};base64,${generatedImageData}`;
 
       return NextResponse.json({
         transformedUrl: dataUrl,
-        description: imageDescription,
+        description: generatedText || imageDescription,
       });
-    } else if (generatedPart?.text) {
-      // Got text instead of image
+    } else if (generatedText) {
+      // Got text only
       return NextResponse.json({
-        description: generatedPart.text,
+        description: generatedText,
         transformedUrl: undefined,
       });
     }

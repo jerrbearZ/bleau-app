@@ -25,11 +25,11 @@ export async function POST(request: Request): Promise<NextResponse<UploadRespons
     // Sanitize filename
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
 
-    // Upload to Vercel Blob (allows overwriting same filename)
+    // Upload to Vercel Blob with random suffix for unique filenames
     const blob = await put(safeName, file, {
       access: "public",
       token: process.env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: false,
+      addRandomSuffix: true,
     });
 
     return NextResponse.json({ url: blob.url });
