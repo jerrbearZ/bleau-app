@@ -23,6 +23,7 @@ export interface UploaderState {
   isDragging: boolean;
   isUploading: boolean;
   isTransforming: boolean;
+  uploadProgress: number;
   originalUrl: string | null;
   transformedUrl: string | null;
   description: string | null;
@@ -33,6 +34,7 @@ export interface UploaderState {
 export type UploaderAction =
   | { type: "SET_DRAGGING"; payload: boolean }
   | { type: "START_UPLOAD" }
+  | { type: "SET_UPLOAD_PROGRESS"; payload: number }
   | { type: "UPLOAD_SUCCESS"; payload: string }
   | { type: "UPLOAD_ERROR"; payload: string }
   | { type: "START_TRANSFORM" }

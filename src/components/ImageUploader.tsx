@@ -11,6 +11,7 @@ const initialState: UploaderState = {
   isDragging: false,
   isUploading: false,
   isTransforming: false,
+  uploadProgress: 0,
   originalUrl: null,
   transformedUrl: null,
   description: null,
@@ -24,11 +25,13 @@ function uploaderReducer(state: UploaderState, action: UploaderAction): Uploader
     case "SET_DRAGGING":
       return { ...state, isDragging: action.payload };
     case "START_UPLOAD":
-      return { ...state, isUploading: true, error: null, transformedUrl: null, description: null };
+      return { ...state, isUploading: true, uploadProgress: 0, error: null, transformedUrl: null, description: null };
+    case "SET_UPLOAD_PROGRESS":
+      return { ...state, uploadProgress: action.payload };
     case "UPLOAD_SUCCESS":
-      return { ...state, isUploading: false, originalUrl: action.payload };
+      return { ...state, isUploading: false, uploadProgress: 100, originalUrl: action.payload };
     case "UPLOAD_ERROR":
-      return { ...state, isUploading: false, error: action.payload };
+      return { ...state, isUploading: false, uploadProgress: 0, error: action.payload };
     case "START_TRANSFORM":
       return { ...state, isTransforming: true, error: null };
     case "TRANSFORM_SUCCESS":
@@ -64,32 +67,42 @@ export default function ImageUploader() {
     dispatch({ type: "SET_DRAGGING", payload: false });
   }, []);
 
-  const handleFileUpload = useCallback(async (file: File) => {
+  const handleFileUpload = useCallback((file: File) => {
     dispatch({ type: "START_UPLOAD" });
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const response = await fetch(API_ENDPOINTS.upload, {
-        method: "POST",
-        body: formData,
-      });
+    const xhr = new XMLHttpRequest();
 
-      const result: UploadResponse = await response.json();
-
-      if (!response.ok || result.error) {
-        dispatch({ type: "UPLOAD_ERROR", payload: result.error || "Upload failed" });
-        return;
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        dispatch({ type: "SET_UPLOAD_PROGRESS", payload: percent });
       }
+    };
 
-      if (result.url) {
-        dispatch({ type: "UPLOAD_SUCCESS", payload: result.url });
+    xhr.onload = () => {
+      try {
+        const result: UploadResponse = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && !result.error) {
+          if (result.url) {
+            dispatch({ type: "UPLOAD_SUCCESS", payload: result.url });
+          }
+        } else {
+          dispatch({ type: "UPLOAD_ERROR", payload: result.error || "Upload failed" });
+        }
+      } catch {
+        dispatch({ type: "UPLOAD_ERROR", payload: "Upload failed: invalid response" });
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Upload failed";
-      dispatch({ type: "UPLOAD_ERROR", payload: message });
-    }
+    };
+
+    xhr.onerror = () => {
+      dispatch({ type: "UPLOAD_ERROR", payload: "Upload failed: network error" });
+    };
+
+    xhr.open("POST", API_ENDPOINTS.upload);
+    xhr.send(formData);
   }, []);
 
   const handleDrop = useCallback(
@@ -207,7 +220,14 @@ export default function ImageUploader() {
             {state.isUploading ? (
               <>
                 <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                <p className="text-lg font-medium text-black">Uploading...</p>
+                <p className="text-lg font-medium text-black mb-3">Uploading...</p>
+                <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${state.uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-2">{state.uploadProgress}%</p>
               </>
             ) : (
               <>
