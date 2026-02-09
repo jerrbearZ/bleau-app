@@ -181,10 +181,11 @@ export default function ImageUploader() {
     <div className="w-full max-w-4xl mx-auto">
       {/* Error Message */}
       {state.error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center justify-between">
+        <div role="alert" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center justify-between">
           <span>{state.error}</span>
           <button
             onClick={() => dispatch({ type: "CLEAR_ERROR" })}
+            aria-label="Dismiss error"
             className="text-red-500 hover:text-red-700"
           >
             <X className="w-4 h-4" />
@@ -212,6 +213,7 @@ export default function ImageUploader() {
             type="file"
             accept={UPLOAD_CONFIG.allowedTypes.join(",")}
             onChange={handleFileSelect}
+            aria-label="Upload an image file"
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             disabled={state.isUploading}
           />
@@ -220,8 +222,15 @@ export default function ImageUploader() {
             {state.isUploading ? (
               <>
                 <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                <p className="text-lg font-medium text-black mb-3">Uploading...</p>
-                <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <p className="text-lg font-medium text-black mb-3">Uploading&hellip;</p>
+                <div
+                  role="progressbar"
+                  aria-valuenow={state.uploadProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Upload progress"
+                  className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden"
+                >
                   <div
                     className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${state.uploadProgress}%` }}
@@ -249,10 +258,11 @@ export default function ImageUploader() {
         <div className="space-y-6">
           {/* Style Selector */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <label className="text-sm font-medium text-black">
+            <label htmlFor="style-select" className="text-sm font-medium text-black">
               Transform style:
             </label>
             <select
+              id="style-select"
               value={state.selectedStyle}
               onChange={(e) => dispatch({ type: "SET_STYLE", payload: e.target.value })}
               disabled={state.isTransforming}
@@ -272,7 +282,7 @@ export default function ImageUploader() {
               {state.isTransforming ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Transforming...
+                  Transforming&hellip;
                 </>
               ) : (
                 <>
@@ -328,7 +338,7 @@ export default function ImageUploader() {
                 {state.isTransforming ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                    <p className="text-sm text-gray-500">AI is creating your image...</p>
+                    <p className="text-sm text-gray-500">AI is creating your image&hellip;</p>
                   </div>
                 ) : state.transformedUrl ? (
                   <Image

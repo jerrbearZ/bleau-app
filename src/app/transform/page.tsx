@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import ImageUploader from "@/components/ImageUploader";
+
+export const metadata: Metadata = {
+  title: "Image Transformer - Bleau",
+  description: "Upload an image and transform it into different artistic styles using AI.",
+};
 
 export default function TransformPage() {
   return (

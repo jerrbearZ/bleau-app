@@ -26,7 +26,9 @@ export async function POST(request: Request): Promise<NextResponse<TransformResp
     }
 
     // Step 1: Fetch and encode the original image
-    const imageResponse = await fetch(imageUrl);
+    const imageResponse = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(15_000),
+    });
     if (!imageResponse.ok) {
       return NextResponse.json(
         { error: "Failed to fetch uploaded image" },
@@ -43,6 +45,7 @@ export async function POST(request: Request): Promise<NextResponse<TransformResp
       `${GEMINI_CONFIG.apiBaseUrl}/models/${GEMINI_CONFIG.fallbackModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(30_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [
@@ -95,6 +98,7 @@ Keep the description concise but complete (2-3 sentences).`,
       `${GEMINI_CONFIG.apiBaseUrl}/models/${GEMINI_CONFIG.model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(60_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [

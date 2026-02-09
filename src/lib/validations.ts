@@ -49,8 +49,11 @@ export function validateBlobUrl(url: string): ValidationResult {
       return { valid: false, error: "URL must use HTTPS" };
     }
 
-    // Must be from Vercel Blob storage
-    if (!parsedUrl.hostname.endsWith(BLOB_URL_PATTERN)) {
+    // Must be from Vercel Blob storage (exact domain or subdomain)
+    if (
+      parsedUrl.hostname !== BLOB_URL_PATTERN &&
+      !parsedUrl.hostname.endsWith(`.${BLOB_URL_PATTERN}`)
+    ) {
       return { valid: false, error: "Invalid image source" };
     }
 
