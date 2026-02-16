@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import TogetherUploader from "@/components/TogetherUploader";
+import UsageBanner from "@/components/UsageBanner";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
@@ -58,6 +59,7 @@ export default function TogetherPage() {
           </p>
         </div>
 
+        <UsageBanner />
         <TogetherUploader />
       </div>
       <Footer />

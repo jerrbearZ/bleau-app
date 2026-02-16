@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import ImageUploader from "@/components/ImageUploader";
+import UsageBanner from "@/components/UsageBanner";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
@@ -51,6 +52,7 @@ export default function TransformPage() {
           </p>
         </div>
 
+        <UsageBanner />
         <ImageUploader />
       </div>
       <Footer />

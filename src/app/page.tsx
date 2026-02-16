@@ -139,15 +139,23 @@ export default function Home() {
 
       {/* CTA */}
       <section className="px-6 py-16 text-center">
-        <p className="mb-4 text-sm font-medium uppercase tracking-widest text-gray-300">
+        <p className="mb-6 text-sm font-medium uppercase tracking-widest text-gray-300">
           Powered by Google Gemini
         </p>
-        <Link
-          href="/how-i-work"
-          className="text-sm font-medium text-black/40 transition-colors hover:text-black"
-        >
-          Learn how Bleau works →
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 rounded-2xl bg-black px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-gray-800 hover:shadow-lg"
+          >
+            View Pricing →
+          </Link>
+          <Link
+            href="/how-i-work"
+            className="text-sm font-medium text-black/40 transition-colors hover:text-black"
+          >
+            How it works
+          </Link>
+        </div>
       </section>
 
       <Footer />
