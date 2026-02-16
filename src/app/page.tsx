@@ -96,6 +96,13 @@ export default function Home() {
             tag="New"
           />
           <ToolCard
+            href="/stocks"
+            emoji="📈"
+            title="AI Stock Screener"
+            description="Real-time quotes, sector analysis, and AI-generated bull/bear cases for any ticker."
+            tag="New"
+          />
+          <ToolCard
             href="/detect"
             emoji="🔍"
             title="Is It AI?"
