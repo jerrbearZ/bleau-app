@@ -14,6 +14,8 @@ import {
 import ShareButton from "./ShareButton";
 import { UPLOAD_CONFIG, API_ENDPOINTS } from "@/lib/constants";
 import { MEMORIAL_STYLE_OPTIONS } from "@/lib/memorial-constants";
+import { addWatermark, shouldWatermark } from "@/lib/watermark";
+import { canGenerate, recordGeneration } from "@/lib/pricing";
 import type {
   UploaderState,
   UploaderAction,
@@ -162,6 +164,13 @@ export default function MemorialUploader() {
 
   const handleTransform = useCallback(async () => {
     if (!state.originalUrl) return;
+
+    const usage = canGenerate();
+    if (!usage.allowed) {
+      dispatch({ type: "TRANSFORM_ERROR", payload: usage.reason || "Daily limit reached." });
+      return;
+    }
+
     dispatch({ type: "START_TRANSFORM" });
     try {
       const response = await fetch("/api/memorial", {
@@ -178,9 +187,17 @@ export default function MemorialUploader() {
         dispatch({ type: "TRANSFORM_ERROR", payload: result.error || "Transform failed" });
         return;
       }
+
+      recordGeneration();
+
+      let finalUrl = result.transformedUrl;
+      if (finalUrl && shouldWatermark()) {
+        finalUrl = await addWatermark(finalUrl);
+      }
+
       dispatch({
         type: "TRANSFORM_SUCCESS",
-        payload: { url: result.transformedUrl, description: result.description },
+        payload: { url: finalUrl, description: result.description },
       });
     } catch (err) {
       dispatch({

@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Upload, Loader2, Sparkles, X, Download, RotateCcw, RefreshCw } from "lucide-react";
 import ShareButton from "./ShareButton";
 import { STYLE_OPTIONS, API_ENDPOINTS, UPLOAD_CONFIG } from "@/lib/constants";
+import { addWatermark, shouldWatermark } from "@/lib/watermark";
+import { canGenerate, recordGeneration } from "@/lib/pricing";
 import type {
   UploaderState,
   UploaderAction,
@@ -159,6 +161,13 @@ export default function ImageUploader() {
   const handleTransform = useCallback(async () => {
     if (!state.originalUrl) return;
 
+    // Check usage limits
+    const usage = canGenerate();
+    if (!usage.allowed) {
+      dispatch({ type: "TRANSFORM_ERROR", payload: usage.reason || "Daily limit reached. Upgrade for unlimited portraits." });
+      return;
+    }
+
     dispatch({ type: "START_TRANSFORM" });
 
     try {
@@ -181,10 +190,19 @@ export default function ImageUploader() {
         return;
       }
 
+      // Record usage
+      recordGeneration();
+
+      // Apply watermark for free tier
+      let finalUrl = result.transformedUrl;
+      if (finalUrl && shouldWatermark()) {
+        finalUrl = await addWatermark(finalUrl);
+      }
+
       dispatch({
         type: "TRANSFORM_SUCCESS",
         payload: {
-          url: result.transformedUrl,
+          url: finalUrl,
           description: result.description,
         },
       });

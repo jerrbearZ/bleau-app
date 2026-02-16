@@ -15,6 +15,8 @@ import {
 import { UPLOAD_CONFIG, API_ENDPOINTS } from "@/lib/constants";
 import { MULTI_PET_STYLE_OPTIONS } from "@/lib/multi-pet-constants";
 import ShareButton from "./ShareButton";
+import { addWatermark, shouldWatermark } from "@/lib/watermark";
+import { canGenerate, recordGeneration } from "@/lib/pricing";
 import type { UploadResponse, TransformResponse } from "@/types";
 
 interface MultiPetState {
@@ -103,6 +105,12 @@ export default function MultiPetUploader() {
   const handleTransform = useCallback(async () => {
     if (state.petUrls.length < 2) return;
 
+    const usage = canGenerate();
+    if (!usage.allowed) {
+      setState((s) => ({ ...s, error: usage.reason || "Daily limit reached." }));
+      return;
+    }
+
     setState((s) => ({
       ...s,
       isTransforming: true,
@@ -132,10 +140,17 @@ export default function MultiPetUploader() {
         return;
       }
 
+      recordGeneration();
+
+      let finalUrl = result.transformedUrl || null;
+      if (finalUrl && shouldWatermark()) {
+        finalUrl = await addWatermark(finalUrl);
+      }
+
       setState((s) => ({
         ...s,
         isTransforming: false,
-        transformedUrl: result.transformedUrl || null,
+        transformedUrl: finalUrl,
         description: result.description || null,
       }));
     } catch (err) {

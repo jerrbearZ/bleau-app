@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { UPLOAD_CONFIG, API_ENDPOINTS } from "@/lib/constants";
 import ShareButton from "./ShareButton";
+import { addWatermark, shouldWatermark } from "@/lib/watermark";
+import { canGenerate, recordGeneration } from "@/lib/pricing";
 import { TOGETHER_STYLE_OPTIONS } from "@/lib/together-constants";
 import type { UploadResponse, TransformResponse } from "@/types";
 
@@ -200,6 +202,12 @@ export default function TogetherUploader() {
   const handleTransform = useCallback(async () => {
     if (!state.personUrl || !state.petUrl) return;
 
+    const usage = canGenerate();
+    if (!usage.allowed) {
+      setState((s) => ({ ...s, error: usage.reason || "Daily limit reached." }));
+      return;
+    }
+
     setState((s) => ({
       ...s,
       isTransforming: true,
@@ -230,10 +238,17 @@ export default function TogetherUploader() {
         return;
       }
 
+      recordGeneration();
+
+      let finalUrl = result.transformedUrl || null;
+      if (finalUrl && shouldWatermark()) {
+        finalUrl = await addWatermark(finalUrl);
+      }
+
       setState((s) => ({
         ...s,
         isTransforming: false,
-        transformedUrl: result.transformedUrl || null,
+        transformedUrl: finalUrl,
         description: result.description || null,
       }));
     } catch (err) {
