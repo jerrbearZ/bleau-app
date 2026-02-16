@@ -89,6 +89,13 @@ export default function Home() {
             tag="New"
           />
           <ToolCard
+            href="/multi-pet"
+            emoji="🐾🐾"
+            title="Multi-Pet Portrait"
+            description="Got multiple pets? Upload each one and get a stunning group portrait of the whole crew."
+            tag="New"
+          />
+          <ToolCard
             href="/detect"
             emoji="🔍"
             title="Is It AI?"
