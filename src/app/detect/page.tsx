@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import ImageUploader from "@/components/ImageUploader";
+import URLAnalyzer from "@/components/URLAnalyzer";
 
 export const metadata: Metadata = {
-  title: "Pet Portrait Studio - Bleau",
+  title: "Is It AI? - Bleau",
   description:
-    "Upload a photo of your pet and watch AI bring them to life in stunning portraits — while preserving every unique detail that makes them yours.",
+    "Paste any URL and find out if the content was created by AI. Analyzes images for visual artifacts and text for AI writing patterns.",
 };
 
-export default function TransformPage() {
+export default function DetectPage() {
   return (
     <main className="min-h-screen bg-white">
       {/* Header */}
@@ -20,10 +20,10 @@ export default function TransformPage() {
           </Link>
           <nav className="flex items-center gap-6">
             <Link
-              href="/detect"
+              href="/transform"
               className="text-sm text-gray-400 transition-colors hover:text-black"
             >
-              is it AI?
+              pet portraits
             </Link>
             <Link
               href="/how-i-work"
@@ -39,18 +39,18 @@ export default function TransformPage() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="mb-14 text-center">
           <p className="mb-3 text-sm font-medium uppercase tracking-widest text-gray-400">
-            Pet Portrait Studio
+            AI Content Detector
           </p>
           <h1 className="mb-4 text-4xl font-bold tracking-tight text-black">
-            Bring your pet to life
+            Is it AI?
           </h1>
           <p className="mx-auto max-w-xl text-lg text-gray-400">
-            Upload a photo and we&apos;ll create a stunning portrait — keeping
-            every marking, every feature, everything that makes them yours.
+            Paste a link to any image or article and we&apos;ll tell you
+            whether it was made by a human or a machine.
           </p>
         </div>
 
-        <ImageUploader />
+        <URLAnalyzer />
       </div>
     </main>
   );
