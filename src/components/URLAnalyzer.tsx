@@ -11,6 +11,8 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronUp,
+  Link as LinkIcon,
+  Type,
 } from "lucide-react";
 import {
   VERDICT_CONFIG,
@@ -105,7 +107,6 @@ function ResultCard({ result }: { result: DetectResult }) {
           />
         </div>
 
-        {/* Signal summary */}
         {result.indicators.length > 0 && (
           <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
             {aiSignals > 0 && (
@@ -132,7 +133,7 @@ function ResultCard({ result }: { result: DetectResult }) {
         </p>
       </div>
 
-      {/* Detailed Indicators — Expandable */}
+      {/* Detailed Indicators */}
       {result.indicators.length > 0 && (
         <div className="rounded-2xl border border-gray-100 bg-white">
           <button
@@ -171,52 +172,78 @@ function ResultCard({ result }: { result: DetectResult }) {
       )}
 
       {/* Source */}
-      <div className="flex items-center justify-center gap-2 text-xs text-gray-300">
-        <ExternalLink className="h-3 w-3" />
-        <span className="max-w-md truncate">{result.sourceUrl}</span>
-      </div>
+      {result.sourceUrl && (
+        <div className="flex items-center justify-center gap-2 text-xs text-gray-300">
+          <ExternalLink className="h-3 w-3" />
+          <span className="max-w-md truncate">{result.sourceUrl}</span>
+        </div>
+      )}
     </div>
   );
 }
 
+type InputMode = "url" | "text";
+
 export default function URLAnalyzer() {
+  const [inputMode, setInputMode] = useState<InputMode>("url");
   const [url, setUrl] = useState("");
+  const [rawText, setRawText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<DetectResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = useCallback(async () => {
-    if (!url.trim()) return;
-
-    // Auto-prepend https:// if no protocol
-    let processedUrl = url.trim();
-    if (
-      !processedUrl.startsWith("http://") &&
-      !processedUrl.startsWith("https://")
-    ) {
-      processedUrl = `https://${processedUrl}`;
-    }
+    const input = inputMode === "url" ? url.trim() : rawText.trim();
+    if (!input) return;
 
     setIsAnalyzing(true);
     setError(null);
     setResult(null);
 
     try {
-      const response = await fetch("/api/detect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: processedUrl }),
-      });
+      if (inputMode === "url") {
+        let processedUrl = input;
+        if (
+          !processedUrl.startsWith("http://") &&
+          !processedUrl.startsWith("https://")
+        ) {
+          processedUrl = `https://${processedUrl}`;
+        }
 
-      const data: DetectResult = await response.json();
+        const response = await fetch("/api/detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: processedUrl }),
+        });
 
-      if (data.error) {
-        setError(data.error);
-        if (data.verdict && data.verdict !== "UNCERTAIN") {
+        const data: DetectResult = await response.json();
+
+        if (data.error) {
+          setError(data.error);
+          if (data.verdict && data.verdict !== "UNCERTAIN") {
+            setResult(data);
+          }
+        } else {
           setResult(data);
         }
       } else {
-        setResult(data);
+        // Raw text mode — send directly to detect-text endpoint
+        const response = await fetch("/api/detect-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: input }),
+        });
+
+        const data: DetectResult = await response.json();
+
+        if (data.error) {
+          setError(data.error);
+          if (data.verdict && data.verdict !== "UNCERTAIN") {
+            setResult(data);
+          }
+        } else {
+          setResult(data);
+        }
       }
     } catch (err) {
       const message =
@@ -225,22 +252,33 @@ export default function URLAnalyzer() {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [url]);
+  }, [url, rawText, inputMode]);
 
   const handleReset = useCallback(() => {
     setUrl("");
+    setRawText("");
     setResult(null);
     setError(null);
   }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !isAnalyzing) {
-        handleAnalyze();
+      if (e.key === "Enter" && !e.shiftKey && !isAnalyzing) {
+        if (inputMode === "url") {
+          handleAnalyze();
+        }
       }
     },
-    [handleAnalyze, isAnalyzing]
+    [handleAnalyze, isAnalyzing, inputMode]
   );
+
+  const handleTryExample = useCallback((exampleUrl: string) => {
+    setInputMode("url");
+    setUrl(exampleUrl);
+  }, []);
+
+  const hasInput =
+    inputMode === "url" ? url.trim().length > 0 : rawText.trim().length > 0;
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -264,25 +302,68 @@ export default function URLAnalyzer() {
       {/* Input */}
       {!result && (
         <div className="space-y-4">
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5">
-              <Search className="h-5 w-5 text-gray-300" />
-            </div>
-            <input
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Paste a URL to any image or article..."
-              disabled={isAnalyzing}
-              className="w-full rounded-2xl border-2 border-gray-100 bg-white py-4 pl-14 pr-4 text-base text-black placeholder-gray-300 outline-none transition-all duration-200 focus:border-black focus:shadow-lg disabled:opacity-60"
-              autoFocus
-            />
+          {/* Mode Tabs */}
+          <div className="flex items-center gap-1 rounded-xl bg-gray-50 p-1">
+            <button
+              onClick={() => setInputMode("url")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
+                inputMode === "url"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <LinkIcon className="h-4 w-4" />
+              Paste a URL
+            </button>
+            <button
+              onClick={() => setInputMode("text")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all ${
+                inputMode === "text"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <Type className="h-4 w-4" />
+              Paste text
+            </button>
           </div>
 
+          {/* URL Input */}
+          {inputMode === "url" && (
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5">
+                <Search className="h-5 w-5 text-gray-300" />
+              </div>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Paste a URL to any image or article..."
+                disabled={isAnalyzing}
+                className="w-full rounded-2xl border-2 border-gray-100 bg-white py-4 pl-14 pr-4 text-base text-black placeholder-gray-300 outline-none transition-all duration-200 focus:border-black focus:shadow-lg disabled:opacity-60"
+                autoFocus
+              />
+            </div>
+          )}
+
+          {/* Text Input */}
+          {inputMode === "text" && (
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Paste the text you want to analyze..."
+              disabled={isAnalyzing}
+              rows={8}
+              className="w-full resize-none rounded-2xl border-2 border-gray-100 bg-white p-5 text-base text-black placeholder-gray-300 outline-none transition-all duration-200 focus:border-black focus:shadow-lg disabled:opacity-60"
+              autoFocus
+            />
+          )}
+
+          {/* Analyze Button */}
           <button
             onClick={handleAnalyze}
-            disabled={isAnalyzing || !url.trim()}
+            disabled={isAnalyzing || !hasInput}
             className="w-full rounded-2xl bg-black py-4 text-sm font-semibold text-white transition-all hover:bg-gray-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isAnalyzing ? (
@@ -297,17 +378,15 @@ export default function URLAnalyzer() {
 
           {isAnalyzing && (
             <p className="text-center text-xs text-gray-400">
-              Fetching content and running forensic analysis — this takes 10-20
-              seconds
+              {inputMode === "url"
+                ? "Fetching content and running forensic analysis — this takes 10-20 seconds"
+                : "Running AI writing pattern analysis — this takes 5-10 seconds"}
             </p>
           )}
 
-          {/* Tips */}
-          {!isAnalyzing && !url && (
-            <div className="mt-8 space-y-3">
-              <p className="text-center text-xs font-medium uppercase tracking-widest text-gray-300">
-                What you can analyze
-              </p>
+          {/* Tips & Examples */}
+          {!isAnalyzing && !hasInput && (
+            <div className="mt-8 space-y-6">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-gray-50 bg-gray-50/50 p-4">
                   <div className="mb-2 flex items-center gap-2">
@@ -317,23 +396,54 @@ export default function URLAnalyzer() {
                     </span>
                   </div>
                   <p className="text-xs leading-relaxed text-gray-400">
-                    Direct image URLs, social media images, AI art, stock
-                    photos, screenshots
+                    AI art, social media photos, stock photos, screenshots,
+                    profile pictures
                   </p>
                 </div>
                 <div className="rounded-xl border border-gray-50 bg-gray-50/50 p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-gray-400" />
                     <span className="text-xs font-semibold text-gray-600">
-                      Articles & Text
+                      Text & Articles
                     </span>
                   </div>
                   <p className="text-xs leading-relaxed text-gray-400">
-                    News articles, blog posts, social media posts, product
-                    descriptions, reviews
+                    News articles, blog posts, essays, reviews, social posts,
+                    product descriptions
                   </p>
                 </div>
               </div>
+
+              {/* Example URLs */}
+              {inputMode === "url" && (
+                <div>
+                  <p className="mb-2 text-center text-xs font-medium uppercase tracking-widest text-gray-300">
+                    Try an example
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      onClick={() =>
+                        handleTryExample(
+                          "https://thispersondoesnotexist.com"
+                        )
+                      }
+                      className="rounded-full border border-gray-100 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-300 hover:text-black"
+                    >
+                      🧑 AI Face Generator
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleTryExample(
+                          "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Ocelot_%28Leopardus_pardalis%29-8.jpg/1280px-Ocelot_%28Leopardus_pardalis%29-8.jpg"
+                        )
+                      }
+                      className="rounded-full border border-gray-100 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-300 hover:text-black"
+                    >
+                      📷 Real Photo
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

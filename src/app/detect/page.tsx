@@ -45,8 +45,8 @@ export default function DetectPage() {
             Is it AI?
           </h1>
           <p className="mx-auto max-w-xl text-lg text-gray-400">
-            Paste a link to any image or article and we&apos;ll tell you
-            whether it was made by a human or a machine.
+            Paste a link to any image or article, or paste text directly,
+            and we&apos;ll tell you whether it was made by a human or a machine.
           </p>
         </div>
 

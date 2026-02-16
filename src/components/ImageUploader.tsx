@@ -2,7 +2,7 @@
 
 import { useReducer, useCallback } from "react";
 import Image from "next/image";
-import { Upload, Loader2, Sparkles, X, Download, RotateCcw } from "lucide-react";
+import { Upload, Loader2, Sparkles, X, Download, RotateCcw, RefreshCw } from "lucide-react";
 import { STYLE_OPTIONS, API_ENDPOINTS, UPLOAD_CONFIG } from "@/lib/constants";
 import type {
   UploaderState,
@@ -421,13 +421,23 @@ export default function ImageUploader() {
                     </p>
                   </div>
                 ) : state.transformedUrl ? (
-                  <Image
-                    src={state.transformedUrl}
-                    alt="Pet portrait"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
+                  <>
+                    <Image
+                      src={state.transformedUrl}
+                      alt="Pet portrait"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                    {/* Regenerate overlay */}
+                    <button
+                      onClick={handleTransform}
+                      className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-xl bg-black/70 px-3 py-2 text-xs font-medium text-white backdrop-blur-sm transition-all hover:bg-black"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Regenerate
+                    </button>
+                  </>
                 ) : state.description ? (
                   <div className="absolute inset-0 overflow-y-auto p-6">
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">
