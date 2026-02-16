@@ -11,6 +11,7 @@ import {
   RotateCcw,
   RefreshCw,
 } from "lucide-react";
+import ShareButton from "./ShareButton";
 import { UPLOAD_CONFIG, API_ENDPOINTS } from "@/lib/constants";
 import { MEMORIAL_STYLE_OPTIONS } from "@/lib/memorial-constants";
 import type {
@@ -410,13 +411,20 @@ export default function MemorialUploader() {
                   Tribute
                 </p>
                 {state.transformedUrl && (
-                  <button
-                    onClick={handleDownload}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-black hover:text-gray-600"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <ShareButton
+                      imageUrl={state.transformedUrl}
+                      title="A tribute to my beloved pet — made with Bleau"
+                      variant="inline"
+                    />
+                    <button
+                      onClick={handleDownload}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-black hover:text-gray-600"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="relative aspect-square overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm">

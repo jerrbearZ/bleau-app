@@ -13,6 +13,7 @@ import {
   User,
 } from "lucide-react";
 import { UPLOAD_CONFIG, API_ENDPOINTS } from "@/lib/constants";
+import ShareButton from "./ShareButton";
 import { TOGETHER_STYLE_OPTIONS } from "@/lib/together-constants";
 import type { UploadResponse, TransformResponse } from "@/types";
 
@@ -425,13 +426,20 @@ export default function TogetherUploader() {
                   Your Portrait Together
                 </p>
                 {state.transformedUrl && (
-                  <button
-                    onClick={handleDownload}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-black hover:text-gray-600"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <ShareButton
+                      imageUrl={state.transformedUrl}
+                      title="Check out our pet & owner AI portrait!"
+                      variant="inline"
+                    />
+                    <button
+                      onClick={handleDownload}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-black hover:text-gray-600"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm">
