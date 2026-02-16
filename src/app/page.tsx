@@ -5,14 +5,14 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Bleau - Your AI Concierge",
   description:
-    "AI-powered tools: transform your pet photos into stunning portraits, detect AI-generated content, and more.",
+    "AI-powered tools: pet portraits, pet & owner portraits, AI content detection, and more.",
 };
 
 export default function Home() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-white">
       <span className="absolute top-4 right-4 text-xs text-black/25">
-        v1.0 — 2026-02-15
+        v1.1 — 2026-02-16
       </span>
 
       <div className="mb-10 flex items-center gap-8">
@@ -23,6 +23,15 @@ export default function Home() {
           <span className="mb-1 block text-2xl">🐾</span>
           <span className="text-sm font-medium text-black/40 transition-colors group-hover:text-black">
             pet portraits
+          </span>
+        </Link>
+        <Link
+          href="/together"
+          className="group text-center transition-all hover:scale-105"
+        >
+          <span className="mb-1 block text-2xl">🧑‍🤝‍🧑</span>
+          <span className="text-sm font-medium text-black/40 transition-colors group-hover:text-black">
+            together
           </span>
         </Link>
         <Link
