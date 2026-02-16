@@ -2,11 +2,15 @@
 
 import { useReducer, useCallback } from "react";
 import Image from "next/image";
-import { Upload, Loader2, Sparkles, X, Download } from "lucide-react";
+import { Upload, Loader2, Sparkles, X, Download, RotateCcw } from "lucide-react";
 import { STYLE_OPTIONS, API_ENDPOINTS, UPLOAD_CONFIG } from "@/lib/constants";
-import type { UploaderState, UploaderAction, UploadResponse, TransformResponse } from "@/types";
+import type {
+  UploaderState,
+  UploaderAction,
+  UploadResponse,
+  TransformResponse,
+} from "@/types";
 
-// Initial state
 const initialState: UploaderState = {
   isDragging: false,
   isUploading: false,
@@ -19,21 +23,40 @@ const initialState: UploaderState = {
   error: null,
 };
 
-// Reducer for cleaner state management
-function uploaderReducer(state: UploaderState, action: UploaderAction): UploaderState {
+function uploaderReducer(
+  state: UploaderState,
+  action: UploaderAction
+): UploaderState {
   switch (action.type) {
     case "SET_DRAGGING":
       return { ...state, isDragging: action.payload };
     case "START_UPLOAD":
-      return { ...state, isUploading: true, uploadProgress: 0, error: null, transformedUrl: null, description: null };
+      return {
+        ...state,
+        isUploading: true,
+        uploadProgress: 0,
+        error: null,
+        transformedUrl: null,
+        description: null,
+      };
     case "SET_UPLOAD_PROGRESS":
       return { ...state, uploadProgress: action.payload };
     case "UPLOAD_SUCCESS":
-      return { ...state, isUploading: false, uploadProgress: 100, originalUrl: action.payload };
+      return {
+        ...state,
+        isUploading: false,
+        uploadProgress: 100,
+        originalUrl: action.payload,
+      };
     case "UPLOAD_ERROR":
-      return { ...state, isUploading: false, uploadProgress: 0, error: action.payload };
+      return {
+        ...state,
+        isUploading: false,
+        uploadProgress: 0,
+        error: action.payload,
+      };
     case "START_TRANSFORM":
-      return { ...state, isTransforming: true, error: null };
+      return { ...state, isTransforming: true, error: null, transformedUrl: null, description: null };
     case "TRANSFORM_SUCCESS":
       return {
         ...state,
@@ -44,7 +67,7 @@ function uploaderReducer(state: UploaderState, action: UploaderAction): Uploader
     case "TRANSFORM_ERROR":
       return { ...state, isTransforming: false, error: action.payload };
     case "SET_STYLE":
-      return { ...state, selectedStyle: action.payload };
+      return { ...state, selectedStyle: action.payload, transformedUrl: null, description: null };
     case "RESET":
       return initialState;
     case "CLEAR_ERROR":
@@ -90,15 +113,24 @@ export default function ImageUploader() {
             dispatch({ type: "UPLOAD_SUCCESS", payload: result.url });
           }
         } else {
-          dispatch({ type: "UPLOAD_ERROR", payload: result.error || "Upload failed" });
+          dispatch({
+            type: "UPLOAD_ERROR",
+            payload: result.error || "Upload failed",
+          });
         }
       } catch {
-        dispatch({ type: "UPLOAD_ERROR", payload: "Upload failed: invalid response" });
+        dispatch({
+          type: "UPLOAD_ERROR",
+          payload: "Upload failed: invalid response",
+        });
       }
     };
 
     xhr.onerror = () => {
-      dispatch({ type: "UPLOAD_ERROR", payload: "Upload failed: network error" });
+      dispatch({
+        type: "UPLOAD_ERROR",
+        payload: "Upload failed: network error",
+      });
     };
 
     xhr.open("POST", API_ENDPOINTS.upload);
@@ -110,9 +142,7 @@ export default function ImageUploader() {
       e.preventDefault();
       dispatch({ type: "SET_DRAGGING", payload: false });
       const file = e.dataTransfer.files[0];
-      if (file) {
-        handleFileUpload(file);
-      }
+      if (file) handleFileUpload(file);
     },
     [handleFileUpload]
   );
@@ -120,9 +150,7 @@ export default function ImageUploader() {
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) {
-        handleFileUpload(file);
-      }
+      if (file) handleFileUpload(file);
     },
     [handleFileUpload]
   );
@@ -145,7 +173,10 @@ export default function ImageUploader() {
       const result: TransformResponse = await response.json();
 
       if (!response.ok || result.error) {
-        dispatch({ type: "TRANSFORM_ERROR", payload: result.error || "Transform failed" });
+        dispatch({
+          type: "TRANSFORM_ERROR",
+          payload: result.error || "Transform failed",
+        });
         return;
       }
 
@@ -168,27 +199,33 @@ export default function ImageUploader() {
 
   const handleDownload = useCallback(() => {
     if (!state.transformedUrl) return;
-
     const link = document.createElement("a");
     link.href = state.transformedUrl;
-    link.download = `transformed-${state.selectedStyle.replace(/\s+/g, "-")}.png`;
+    link.download = `bleau-pet-portrait-${state.selectedStyle}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }, [state.transformedUrl, state.selectedStyle]);
 
+  const selectedStyleOption = STYLE_OPTIONS.find(
+    (s) => s.value === state.selectedStyle
+  );
+
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-5xl">
       {/* Error Message */}
       {state.error && (
-        <div role="alert" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center justify-between">
+        <div
+          role="alert"
+          className="mb-6 flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
           <span>{state.error}</span>
           <button
             onClick={() => dispatch({ type: "CLEAR_ERROR" })}
             aria-label="Dismiss error"
-            className="text-red-500 hover:text-red-700"
+            className="ml-4 text-red-400 transition-colors hover:text-red-600"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
@@ -200,52 +237,60 @@ export default function ImageUploader() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`
-            relative border-2 border-dashed rounded-2xl p-12
-            transition-all duration-200 ease-in-out
-            ${state.isDragging
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-300 hover:border-gray-400 bg-gray-50"
+            relative overflow-hidden rounded-3xl border-2 border-dashed p-16
+            transition-all duration-300 ease-in-out
+            ${
+              state.isDragging
+                ? "scale-[1.01] border-black bg-gray-50"
+                : "border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50/50"
             }
-            ${state.isUploading ? "pointer-events-none opacity-60" : "cursor-pointer"}
+            ${state.isUploading ? "pointer-events-none" : "cursor-pointer"}
           `}
         >
           <input
             type="file"
             accept={UPLOAD_CONFIG.allowedTypes.join(",")}
             onChange={handleFileSelect}
-            aria-label="Upload an image file"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            aria-label="Upload a photo of your pet"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             disabled={state.isUploading}
           />
 
           <div className="flex flex-col items-center justify-center text-center">
             {state.isUploading ? (
               <>
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                <p className="text-lg font-medium text-black mb-3">Uploading&hellip;</p>
+                <Loader2 className="mb-6 h-10 w-10 animate-spin text-black" />
+                <p className="mb-4 text-lg font-medium text-black">
+                  Uploading your photo&hellip;
+                </p>
                 <div
                   role="progressbar"
                   aria-valuenow={state.uploadProgress}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-label="Upload progress"
-                  className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden"
+                  className="h-1 w-48 overflow-hidden rounded-full bg-gray-200"
                 >
                   <div
-                    className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                    className="h-full rounded-full bg-black transition-all duration-300 ease-out"
                     style={{ width: `${state.uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-sm text-gray-500 mt-2">{state.uploadProgress}%</p>
               </>
             ) : (
               <>
-                <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                <p className="text-lg font-medium text-black mb-2">
-                  Drop your image here
+                <div className="mb-6 text-6xl">🐾</div>
+                <Upload className="mb-6 h-8 w-8 text-gray-300" />
+                <p className="mb-2 text-xl font-semibold text-black">
+                  Upload your pet&apos;s photo
                 </p>
-                <p className="text-sm text-gray-500">
-                  or click to browse ({UPLOAD_CONFIG.allowedExtensions.join(", ")} up to {UPLOAD_CONFIG.maxSizeMB}MB)
+                <p className="mb-4 text-sm text-gray-400">
+                  Drag and drop or click to browse
+                </p>
+                <p className="text-xs text-gray-300">
+                  {UPLOAD_CONFIG.allowedExtensions.join(", ")} &middot; up to{" "}
+                  {UPLOAD_CONFIG.maxSizeMB}MB &middot; clear, well-lit photos
+                  work best
                 </p>
               </>
             )}
@@ -253,115 +298,155 @@ export default function ImageUploader() {
         </div>
       )}
 
-      {/* Image Display & Transform Controls */}
+      {/* Uploaded — Style Selection & Generation */}
       {state.originalUrl && (
-        <div className="space-y-6">
-          {/* Style Selector */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <label htmlFor="style-select" className="text-sm font-medium text-black">
-              Transform style:
-            </label>
-            <select
-              id="style-select"
-              value={state.selectedStyle}
-              onChange={(e) => dispatch({ type: "SET_STYLE", payload: e.target.value })}
-              disabled={state.isTransforming}
-              className="flex-1 max-w-xs px-4 py-2 border border-gray-300 rounded-lg bg-white text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
+        <div className="space-y-8">
+          {/* Style Grid */}
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-black">
+                Choose a style
+              </h2>
+              <button
+                onClick={handleReset}
+                disabled={state.isTransforming}
+                className="inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-black disabled:opacity-50"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Start over
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {STYLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+                <button
+                  key={option.value}
+                  onClick={() =>
+                    dispatch({ type: "SET_STYLE", payload: option.value })
+                  }
+                  disabled={state.isTransforming}
+                  className={`group relative rounded-2xl border-2 px-4 py-4 text-left transition-all duration-200 ${
+                    state.selectedStyle === option.value
+                      ? "border-black bg-black text-white shadow-lg"
+                      : "border-gray-100 bg-white text-gray-700 hover:border-gray-300 hover:shadow-sm"
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  <span className="mb-1 block text-lg">{option.emoji}</span>
+                  <span className="block text-sm font-semibold">
+                    {option.label}
+                  </span>
+                  <span
+                    className={`mt-0.5 block text-xs ${
+                      state.selectedStyle === option.value
+                        ? "text-white/60"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {option.description}
+                  </span>
+                </button>
               ))}
-            </select>
+            </div>
+          </div>
+
+          {/* Generate Button */}
+          <div className="flex items-center gap-4">
             <button
               onClick={handleTransform}
               disabled={state.isTransforming}
-              className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2.5 rounded-2xl bg-black px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-gray-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
               {state.isTransforming ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Transforming&hellip;
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating your portrait&hellip;
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
-                  Transform
+                  <Sparkles className="h-4 w-4" />
+                  Generate {selectedStyleOption?.label || "Portrait"}
                 </>
               )}
             </button>
-            <button
-              onClick={handleReset}
-              disabled={state.isTransforming}
-              className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black transition-colors disabled:opacity-50"
-            >
-              <X className="w-4 h-4" />
-              Reset
-            </button>
+            {state.isTransforming && (
+              <p className="text-xs text-gray-400">
+                AI is studying your pet&apos;s features — this takes 15-30s
+              </p>
+            )}
           </div>
 
-          {/* Images Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Original Image */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                Original
+          {/* Images */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Original */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                Your Pet
               </p>
-              <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+              <div className="relative aspect-square overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm">
                 <Image
                   src={state.originalUrl}
-                  alt="Original uploaded image"
+                  alt="Your pet"
                   fill
                   className="object-cover"
                 />
               </div>
             </div>
 
-            {/* Transformed Result */}
-            <div className="space-y-2">
+            {/* Result */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                  Transformed
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                  Portrait
                 </p>
                 {state.transformedUrl && (
                   <button
                     onClick={handleDownload}
-                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-black transition-colors hover:text-gray-600"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="h-3.5 w-3.5" />
                     Download
                   </button>
                 )}
               </div>
-              <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+              <div className="relative aspect-square overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm">
                 {state.isTransforming ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                    <p className="text-sm text-gray-500">AI is creating your image&hellip;</p>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white">
+                    <div className="relative mb-6">
+                      <Loader2 className="h-10 w-10 animate-spin text-black" />
+                    </div>
+                    <p className="text-sm font-medium text-black">
+                      Painting your pet&hellip;
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Preserving every unique detail
+                    </p>
                   </div>
                 ) : state.transformedUrl ? (
                   <Image
                     src={state.transformedUrl}
-                    alt="Transformed image"
+                    alt="Pet portrait"
                     fill
                     className="object-cover"
-                    unoptimized // Required for data URLs
+                    unoptimized
                   />
                 ) : state.description ? (
-                  <div className="absolute inset-0 p-4 overflow-y-auto">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
-                      AI Description:
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <div className="absolute inset-0 overflow-y-auto p-6">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">
                       {state.description}
                     </p>
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-sm text-gray-400 text-center px-4">
-                      Select a style and click Transform
-                    </p>
+                    <div className="text-center">
+                      <p className="text-3xl mb-3">
+                        {selectedStyleOption?.emoji}
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        {selectedStyleOption?.label}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-300">
+                        Click generate to create
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

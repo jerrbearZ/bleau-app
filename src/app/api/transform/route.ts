@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { validateBlobUrl, validateStyle } from "@/lib/validations";
-import { STYLE_OPTIONS, GEMINI_CONFIG } from "@/lib/constants";
+import { STYLE_OPTIONS, GEMINI_CONFIG, PET_ANALYSIS_PROMPT } from "@/lib/constants";
 import type { TransformResponse } from "@/types";
 
-export async function POST(request: Request): Promise<NextResponse<TransformResponse>> {
+export async function POST(
+  request: Request
+): Promise<NextResponse<TransformResponse>> {
   try {
     const { imageUrl, style } = await request.json();
 
@@ -15,7 +17,18 @@ export async function POST(request: Request): Promise<NextResponse<TransformResp
 
     const styleValidation = validateStyle(style, STYLE_OPTIONS);
     if (!styleValidation.valid) {
-      return NextResponse.json({ error: styleValidation.error }, { status: 400 });
+      return NextResponse.json(
+        { error: styleValidation.error },
+        { status: 400 }
+      );
+    }
+
+    const styleOption = STYLE_OPTIONS.find((s) => s.value === style);
+    if (!styleOption) {
+      return NextResponse.json(
+        { error: "Invalid style selected" },
+        { status: 400 }
+      );
     }
 
     if (!process.env.GEMINI_API_KEY) {
@@ -40,7 +53,7 @@ export async function POST(request: Request): Promise<NextResponse<TransformResp
     const base64Image = Buffer.from(imageBuffer).toString("base64");
     const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
-    // Step 2: Use Gemini to analyze the image and get a description
+    // Step 2: Analyze the pet's identity in precise detail
     const analyzeResponse = await fetch(
       `${GEMINI_CONFIG.apiBaseUrl}/models/${GEMINI_CONFIG.fallbackModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -53,18 +66,12 @@ export async function POST(request: Request): Promise<NextResponse<TransformResp
               parts: [
                 {
                   inlineData: {
-                    mimeType: mimeType,
+                    mimeType,
                     data: base64Image,
                   },
                 },
                 {
-                  text: `Describe this image in detail for an artist to recreate it. Include:
-- Main subject(s) and their poses/positions
-- Background elements
-- Colors and lighting
-- Composition and framing
-- Any text or notable details
-Keep the description concise but complete (2-3 sentences).`,
+                  text: PET_ANALYSIS_PROMPT,
                 },
               ],
             },
@@ -75,24 +82,34 @@ Keep the description concise but complete (2-3 sentences).`,
 
     if (!analyzeResponse.ok) {
       const errorText = await analyzeResponse.text();
-      console.error("Gemini analyze error", {
+      console.error("Pet analysis error:", {
         status: analyzeResponse.status,
-        statusText: analyzeResponse.statusText,
-        errorText,
+        error: errorText,
       });
       return NextResponse.json(
-        { error: `Image analysis failed: ${analyzeResponse.status} ${analyzeResponse.statusText} - ${errorText}` },
+        { error: "Failed to analyze your pet's photo. Please try again." },
         { status: 500 }
       );
     }
 
     const analyzeData = await analyzeResponse.json();
-    const imageDescription =
+    const petDescription =
       analyzeData.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "A detailed image";
+      "A pet in the photo";
 
-    // Step 3: Generate new image using image generation model
-    const generatePrompt = `Create an image in ${style} style: ${imageDescription}. Make it highly detailed and artistic.`;
+    // Step 3: Generate portrait with original image + identity-preserving prompt
+    // Passing the original image alongside the prompt gives Gemini a visual
+    // reference, dramatically improving identity consistency
+    const generatePrompt = `${styleOption.prompt}
+
+IDENTITY REFERENCE — this is the exact pet you must depict:
+${petDescription}
+
+CRITICAL INSTRUCTIONS:
+- The generated image must depict this EXACT pet, not a generic animal
+- Do NOT change the breed, fur color, markings, eye color, or any distinguishing features
+- The pet must be immediately recognizable as the same individual from the reference photo
+- Identity accuracy is the #1 priority, artistic style is #2`;
 
     const generateResponse = await fetch(
       `${GEMINI_CONFIG.apiBaseUrl}/models/${GEMINI_CONFIG.model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -104,6 +121,12 @@ Keep the description concise but complete (2-3 sentences).`,
           contents: [
             {
               parts: [
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Image,
+                  },
+                },
                 {
                   text: generatePrompt,
                 },
@@ -119,21 +142,18 @@ Keep the description concise but complete (2-3 sentences).`,
 
     if (!generateResponse.ok) {
       const errorText = await generateResponse.text();
-      console.error("Gemini generate error", {
+      console.error("Pet generation error:", {
         status: generateResponse.status,
-        statusText: generateResponse.statusText,
-        errorText,
+        error: errorText,
       });
-      // Fallback: Return just the description if image generation fails
+      // Graceful fallback — return the analysis so the user sees something
       return NextResponse.json({
-        description: `**Style: ${style}**\n\n${imageDescription}\n\n*Image generation is currently unavailable. Here's how your image would look:*\n\nImagine this scene transformed with ${style} aesthetics, featuring stylized elements, characteristic color palettes, and artistic techniques typical of this style.`,
+        description: `**Your pet:** ${petDescription}\n\n*Image generation is temporarily unavailable. Please try again in a moment.*`,
         transformedUrl: undefined,
       });
     }
 
     const generateData = await generateResponse.json();
-
-    // Find image and text parts in the response
     const parts = generateData.candidates?.[0]?.content?.parts || [];
 
     let generatedImageData: string | null = null;
@@ -151,15 +171,14 @@ Keep the description concise but complete (2-3 sentences).`,
     }
 
     if (generatedImageData) {
-      // We got a generated image - convert to data URL
       const dataUrl = `data:${generatedMimeType};base64,${generatedImageData}`;
-
       return NextResponse.json({
         transformedUrl: dataUrl,
-        description: generatedText || imageDescription,
+        description: generatedText || petDescription,
       });
-    } else if (generatedText) {
-      // Got text only
+    }
+
+    if (generatedText) {
       return NextResponse.json({
         description: generatedText,
         transformedUrl: undefined,
@@ -167,11 +186,12 @@ Keep the description concise but complete (2-3 sentences).`,
     }
 
     return NextResponse.json({
-      description: imageDescription,
+      description: petDescription,
       transformedUrl: undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Transform error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
