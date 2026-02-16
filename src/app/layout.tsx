@@ -9,7 +9,36 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Bleau - Your AI Concierge",
-  description: "Technology is evolving fast. Bleau brings you the best AI tools with safety, privacy, quality and transparency.",
+  description:
+    "AI-powered tools: pet portraits, pet & owner portraits, pet memorials, and AI content detection. Beautiful, fast, and free.",
+  metadataBase: new URL("https://bleau.ai"),
+  openGraph: {
+    title: "Bleau - Your AI Concierge",
+    description:
+      "AI-powered pet portraits, memorial tributes, and content detection. Beautiful, fast, and free.",
+    url: "https://bleau.ai",
+    siteName: "Bleau",
+    images: [
+      {
+        url: "/logo.png",
+        width: 400,
+        height: 160,
+        alt: "Bleau",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bleau - Your AI Concierge",
+    description:
+      "AI-powered pet portraits, memorial tributes, and content detection.",
+    images: ["/logo.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

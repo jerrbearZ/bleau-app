@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import TogetherUploader from "@/components/TogetherUploader";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Pet & Owner Portrait - Bleau",
@@ -59,6 +60,7 @@ export default function TogetherPage() {
 
         <TogetherUploader />
       </div>
+      <Footer />
     </main>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import ImageUploader from "@/components/ImageUploader";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Pet Portrait Studio - Bleau",
@@ -52,6 +53,7 @@ export default function TransformPage() {
 
         <ImageUploader />
       </div>
+      <Footer />
     </main>
   );
 }

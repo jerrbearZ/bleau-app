@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import URLAnalyzer from "@/components/URLAnalyzer";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Is It AI? - Bleau",
@@ -52,6 +53,7 @@ export default function DetectPage() {
 
         <URLAnalyzer />
       </div>
+      <Footer />
     </main>
   );
 }

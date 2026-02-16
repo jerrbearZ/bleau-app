@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import MemorialUploader from "@/components/MemorialUploader";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Pet Memorial - Bleau",
@@ -59,6 +60,7 @@ export default function MemorialPage() {
 
         <MemorialUploader />
       </div>
+      <Footer />
     </main>
   );
 }
