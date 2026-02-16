@@ -23,12 +23,6 @@ function formatVol(v: number) {
   if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
   return String(v);
 }
-function formatCap(c: number) {
-  if (c >= 1e12) return `$${(c / 1e12).toFixed(2)}T`;
-  if (c >= 1e9) return `$${(c / 1e9).toFixed(1)}B`;
-  return `$${(c / 1e6).toFixed(0)}M`;
-}
-
 function QuoteRow({ q }: { q: StockQuote }) {
   const isUp = q.change >= 0;
   return (
@@ -59,8 +53,8 @@ function QuoteRow({ q }: { q: StockQuote }) {
           <p className="text-xs text-gray-600">{formatVol(q.volume)}</p>
         </div>
         <div className="hidden text-right sm:block">
-          <p className="text-[10px] text-gray-400">MCap</p>
-          <p className="text-xs text-gray-600">{formatCap(q.marketCap)}</p>
+          <p className="text-[10px] text-gray-400">52w Hi</p>
+          <p className="text-xs text-gray-600">{formatPrice(q.high52w)}</p>
         </div>
         {isUp ? (
           <TrendingUp className="h-4 w-4 text-green-500" />

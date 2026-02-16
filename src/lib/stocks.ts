@@ -1,4 +1,4 @@
-// Stock data utilities — uses Yahoo Finance API (no key required)
+// Stock data utilities — uses Yahoo Finance v8 chart API (no key required)
 
 export interface StockQuote {
   symbol: string;
@@ -52,38 +52,48 @@ export const SECTORS: SectorInfo[] = [
   },
 ];
 
-// Fetch stock quotes from Yahoo Finance
-export async function fetchQuotes(symbols: string[]): Promise<StockQuote[]> {
-  const query = symbols.join(",");
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${query}`;
+// Fetch a single stock quote via Yahoo Finance v8 chart API
+async function fetchSingleQuote(symbol: string): Promise<StockQuote | null> {
+  try {
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d&includePrePost=false`;
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      next: { revalidate: 300 },
+    });
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-    },
-    next: { revalidate: 300 }, // Cache for 5 minutes
-  });
+    if (!response.ok) return null;
 
-  if (!response.ok) {
-    console.error("Yahoo Finance error:", response.status);
-    return [];
+    const data = await response.json();
+    const result = data.chart?.result?.[0];
+    if (!result) return null;
+
+    const meta = result.meta;
+    const prevClose = meta.chartPreviousClose || meta.previousClose || 0;
+    const price = meta.regularMarketPrice || 0;
+    const change = price - prevClose;
+    const changePercent = prevClose ? (change / prevClose) * 100 : 0;
+
+    return {
+      symbol: meta.symbol || symbol,
+      name: meta.shortName || meta.longName || symbol,
+      price,
+      change,
+      changePercent,
+      volume: meta.regularMarketVolume || 0,
+      marketCap: 0, // Not available in chart API
+      peRatio: null,
+      high52w: meta.fiftyTwoWeekHigh || 0,
+      low52w: meta.fiftyTwoWeekLow || 0,
+    };
+  } catch {
+    return null;
   }
+}
 
-  const data = await response.json();
-  const results = data.quoteResponse?.result || [];
-
-  return results.map((q: Record<string, unknown>) => ({
-    symbol: q.symbol as string,
-    name: (q.shortName || q.longName || q.symbol) as string,
-    price: (q.regularMarketPrice as number) || 0,
-    change: (q.regularMarketChange as number) || 0,
-    changePercent: (q.regularMarketChangePercent as number) || 0,
-    volume: (q.regularMarketVolume as number) || 0,
-    marketCap: (q.marketCap as number) || 0,
-    peRatio: (q.trailingPE as number) || null,
-    high52w: (q.fiftyTwoWeekHigh as number) || 0,
-    low52w: (q.fiftyTwoWeekLow as number) || 0,
-  }));
+// Fetch multiple quotes in parallel
+export async function fetchQuotes(symbols: string[]): Promise<StockQuote[]> {
+  const results = await Promise.all(symbols.map(fetchSingleQuote));
+  return results.filter((r): r is StockQuote => r !== null);
 }
 
 // Format helpers
